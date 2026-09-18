@@ -10,6 +10,7 @@ export * from './math/fft';
 export * from './core/OceanSimulator';
 export * from './core/CPUReferenceOcean';
 export * from './core/ThreeOceanMesh';
+export * from './utils/beaufort';
 
 export { oceanSpectrumShader } from './shaders/oceanSpectrum.wgsl';
 export { oceanFftShader } from './shaders/oceanFft.wgsl';
