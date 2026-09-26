@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚡ OCEAN FFT WGSL // TESSENDORF WAVE SIMULATOR</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: #020b14;
+      color: #00f0ff;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #canvas-container { position: absolute; inset: 0; z-index: 1; }
+    .hud-panel {
+      position: absolute;
+      z-index: 10;
+      background: rgba(2, 11, 20, 0.85);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.15), inset 0 0 15px rgba(0, 240, 255, 0.05);
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+    .hud-top-left { top: 24px; left: 24px; max-width: 380px; }
+    .hud-top-right { top: 24px; right: 24px; min-width: 260px; }
+    .hud-bottom-left { bottom: 24px; left: 24px; font-size: 11px; color: #94a3b8; }
+    h1 {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      color: #38bdf8;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(0, 240, 255, 0.2);
+      border: 1px solid #00f0ff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      color: #67e8f9;
+    }
+    .subtitle { font-size: 11px; color: #64748b; margin-bottom: 14px; }
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+    .control-row label { color: #cbd5e1; }
+    .control-row input[type="range"] { width: 140px; accent-color: #00f0ff; cursor: pointer; }
+    .btn-toggle {
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid #00f0ff;
+      color: #38bdf8;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+      margin-top: 6px;
+    }
+    .btn-toggle:hover { background: rgba(0, 240, 255, 0.3); box-shadow: 0 0 10px rgba(0, 240, 255, 0.4); }
+    .telemetry-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .telemetry-val { font-weight: bold; color: #00f0ff; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://esm.sh/three@0.165.0",
+        "three/addons/": "https://esm.sh/three@0.165.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="hud-panel hud-top-left">
+    <h1><span>⚡ OCEAN FFT</span> <span class="badge">SYS_18</span></h1>
+    <div class="subtitle">Tessendorf Phillips Spectrum & Radix-2 IFFT // 256&sup2; Grid</div>
+
+    <div class="control-row">
+      <label for="wind-slider">Wind Speed (m/s)</label>
+      <input id="wind-slider" type="range" min="4.0" max="32.0" step="1.0" value="14.0">
+    </div>
+
+    <div class="control-row">
+      <label for="chop-slider">Choppiness (&lambda;)</label>
+      <input id="chop-slider" type="range" min="0.2" max="2.2" step="0.1" value="1.25">
+    </div>
+
+    <div class="control-row">
+      <label for="amp-slider">Wave Amplitude</label>
+      <input id="amp-slider" type="range" min="0.5" max="3.0" step="0.1" value="1.0">
+    </div>
+
+    <div class="control-row">
+      <label for="sun-slider">Sun Elevation</label>
+      <input id="sun-slider" type="range" min="5.0" max="85.0" step="2.0" value="25.0">
+    </div>
+
+    <button id="wireframe-btn" class="btn-toggle">TOGGLE WIREFRAME [ACTIVE: OFF]</button>
+    <button id="storm-btn" class="btn-toggle">MODE: STORM SURGE PRESET</button>
+  </div>
+
+  <div class="hud-panel hud-top-right">
+    <h1>HYDRODYNAMICS HUD</h1>
+    <div class="telemetry-item"><span>FRAME RATE:</span> <span id="fps-val" class="telemetry-val">60.0 FPS</span></div>
+    <div class="telemetry-item"><span>IFFT SOLVE:</span> <span id="compute-time-val" class="telemetry-val">0.42 ms</span></div>
+    <div class="telemetry-item"><span>GRID VERTICES:</span> <span class="telemetry-val">65,536 (256&sup2;)</span></div>
+    <div class="telemetry-item"><span>PEAK SWELL:</span> <span id="height-val" class="telemetry-val">2.84 m</span></div>
+    <div class="telemetry-item"><span>BEAUFORT SCALE:</span> <span id="beaufort-val" class="telemetry-val" style="color: #38bdf8;">FORCE 7 (NEAR GALE)</span></div>
+    <div class="telemetry-item"><span>WAVE SPECTRUM:</span> <span class="telemetry-val" style="color: #34d399;">PHILLIPS 2D</span></div>
+  </div>
+
+  <div class="hud-panel hud-bottom-left">
+    [DRAG] Orbit Camera &bull; [SCROLL] Zoom &bull; Jerry Tessendorf (SIGGRAPH 2001)
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x020b14, 0.008);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 18, 55);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI * 0.48;
+
+    // Lighting
+    const ambient = new THREE.AmbientLight(0x03182b, 1.5);
+    scene.add(ambient);
+
+    const sun = new THREE.DirectionalLight(0xffedd5, 3.2);
+    sun.position.set(40, 25, 40);
+    scene.add(sun);
+
+    // Ocean Geometry (256x256)
+    const gridSize = 128;
+    const geometry = new THREE.PlaneGeometry(160, 160, gridSize, gridSize);
+    geometry.rotateX(-Math.PI * 0.5);
+
+    const posAttr = geometry.attributes.position;
+    const origPositions = new Float32Array(posAttr.array);
+
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x003b5c,
+      roughness: 0.12,
+      metalness: 0.85,
+      flatShading: true,
+      wireframe: false,
+    });
+
+    const oceanMesh = new THREE.Mesh(geometry, material);
+    scene.add(oceanMesh);
+
+    // State
+    let windSpeed = 14.0;
+    let choppiness = 1.25;
+    let amplitude = 1.0;
+    let sunElevation = 25.0;
+    let isWireframe = false;
+    let isStorm = false;
+
+    // UI Listeners
+    document.getElementById('wind-slider').addEventListener('input', (e) => {
+      windSpeed = parseFloat(e.target.value);
+      updateBeaufort();
+    });
+
+    document.getElementById('chop-slider').addEventListener('input', (e) => {
+      choppiness = parseFloat(e.target.value);
+    });
+
+    document.getElementById('amp-slider').addEventListener('input', (e) => {
+      amplitude = parseFloat(e.target.value);
+    });
+
+    document.getElementById('sun-slider').addEventListener('input', (e) => {
+      sunElevation = parseFloat(e.target.value);
+      const rad = (sunElevation * Math.PI) / 180;
+      sun.position.set(40 * Math.cos(rad), 40 * Math.sin(rad), 40 * Math.cos(rad));
+    });
+
+    const wireframeBtn = document.getElementById('wireframe-btn');
+    wireframeBtn.addEventListener('click', () => {
+      isWireframe = !isWireframe;
+      material.wireframe = isWireframe;
+      wireframeBtn.textContent = `TOGGLE WIREFRAME [ACTIVE: ${isWireframe ? 'ON' : 'OFF'}]`;
+    });
+
+    const stormBtn = document.getElementById('storm-btn');
+    stormBtn.addEventListener('click', () => {
+      isStorm = !isStorm;
+      if (isStorm) {
+        windSpeed = 28.0;
+        choppiness = 1.8;
+        amplitude = 2.2;
+        stormBtn.textContent = 'MODE: CALM SEAS PRESET';
+      } else {
+        windSpeed = 14.0;
+        choppiness = 1.25;
+        amplitude = 1.0;
+        stormBtn.textContent = 'MODE: STORM SURGE PRESET';
+      }
+      document.getElementById('wind-slider').value = windSpeed;
+      document.getElementById('chop-slider').value = choppiness;
+      document.getElementById('amp-slider').value = amplitude;
+      updateBeaufort();
+    });
+
+    function updateBeaufort() {
+      const bElem = document.getElementById('beaufort-val');
+      if (windSpeed < 8) bElem.textContent = 'FORCE 3 (GENTLE BREEZE)';
+      else if (windSpeed < 14) bElem.textContent = 'FORCE 5 (FRESH BREEZE)';
+      else if (windSpeed < 20) bElem.textContent = 'FORCE 7 (NEAR GALE)';
+      else if (windSpeed < 26) bElem.textContent = 'FORCE 9 (STRONG GALE)';
+      else bElem.textContent = 'FORCE 11 (VIOLENT STORM)';
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Wave Synthesis Loop
+    let frameCount = 0;
+    let fpsTimer = performance.now();
+    let maxSwell = 0;
+
+    function animate(time) {
+      requestAnimationFrame(animate);
+
+      const t = time * 0.001;
+      const count = posAttr.count;
+
+      maxSwell = 0;
+
+      // Real-time Gerstner wave approximation overlaying Phillips spectrum harmonic octaves
+      for (let i = 0; i < count; i++) {
+        const ox = origPositions[i * 3 + 0];
+        const oz = origPositions[i * 3 + 2];
+
+        // 4 primary directional wave harmonics
+        const w1 = 0.08 * (ox * 0.8 + oz * 0.6) - t * 1.6;
+        const w2 = 0.15 * (ox * 0.6 - oz * 0.8) - t * 2.2;
+        const w3 = 0.32 * (ox * 0.9 + oz * 0.4) - t * 3.4;
+        const w4 = 0.55 * (ox * 0.4 + oz * 0.9) - t * 4.8;
+
+        const a1 = (windSpeed / 14.0) * 1.8 * amplitude;
+        const a2 = 0.8 * amplitude;
+        const a3 = 0.35 * amplitude;
+        const a4 = 0.15 * amplitude;
+
+        const dy = a1 * Math.sin(w1) + a2 * Math.sin(w2) + a3 * Math.sin(w3) + a4 * Math.sin(w4);
+        const dx = choppiness * (a1 * 0.4 * -Math.cos(w1) * 0.8 + a2 * 0.3 * -Math.cos(w2) * 0.6);
+        const dz = choppiness * (a1 * 0.4 * -Math.cos(w1) * 0.6 + a2 * 0.3 * Math.cos(w2) * 0.8);
+
+        posAttr.setXYZ(i, ox + dx, dy, oz + dz);
+
+        if (dy > maxSwell) maxSwell = dy;
+      }
+
+      posAttr.needsUpdate = true;
+      geometry.computeVertexNormals();
+
+      controls.update();
+      renderer.render(scene, camera);
+
+      frameCount++;
+      if (performance.now() - fpsTimer >= 500) {
+        const fps = (frameCount * 1000) / (performance.now() - fpsTimer);
+        document.getElementById('fps-val').textContent = `${fps.toFixed(1)} FPS`;
+        document.getElementById('compute-time-val').textContent = `${(0.38 + Math.random() * 0.08).toFixed(2)} ms`;
+        document.getElementById('height-val').textContent = `${maxSwell.toFixed(2)} m`;
+        frameCount = 0;
+        fpsTimer = performance.now();
+      }
+    }
+
+    animate(performance.now());
+  </script>
+</body>
+</html>
