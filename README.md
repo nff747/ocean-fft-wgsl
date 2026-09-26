@@ -1,5 +1,7 @@
 # ⚡ Ocean FFT WGSL
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-WebGPU%20Simulation-00f0ff?style=for-the-badge&logo=webgpu)](https://nff747.github.io/ocean-fft-wgsl/)
+
 ![Ocean FFT WGSL](assets/banner.jpg)
 
 > **Real-Time Phillips Spectrum & Tessendorf Ocean Wave FFT Simulation in WebGPU / WGSL**  
