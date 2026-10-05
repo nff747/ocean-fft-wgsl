@@ -29,7 +29,8 @@
   "devDependencies": {
     "@types/node": "^20.14.2",
     "typescript": "^5.4.5",
-    "vitest": "^1.6.0"
+    "vitest": "^5.0.3",
+    "vite": "^8.3.2"
   },
   "peerDependencies": {
     "@webgpu/types": "^0.1.40"
