@@ -8,7 +8,7 @@
 > *Hardware-accelerated 2D Radix-2 Cooley-Tukey IFFT, statistical Phillips wave spectrum, choppy wave peaks, and Jacobian wave-crest foam generation.*
 
 [![CI](https://github.com/nff747/ocean-fft-wgsl/actions/workflows/ci.yml/badge.svg)](https://github.com/nff747/ocean-fft-wgsl/actions)
-[![License: MIT](https://img.shields.io/badge/License-Apache_2.0-blue)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![WebGPU](https://img.shields.io/badge/WebGPU-Enabled-cyan.svg)](https://w3.org/TR/webgpu/)
 [![Vitest](https://img.shields.io/badge/Tested%20With-Vitest-green.svg)](https://vitest.dev/)
 
@@ -145,4 +145,4 @@ npm run benchmark
 
 ## 📜 License
 
-MIT &copy; 2026 [nff747](https://github.com/nff747). Authored with high-performance WebGPU graphics architectures.
+Apache 2.0 &copy; 2026 [nff747](https://github.com/nff747). Authored with high-performance WebGPU graphics architectures.
