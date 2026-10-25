@@ -159,3 +159,24 @@ describe('JONSWAP Spectral Enhancement', () => {
     expect(farAbove).toBeLessThan(atPeak);
   });
 });
+
+describe('Butterfly Stage Twiddle Factors', () => {
+  it('should generate exact pairs and unit twiddle factors for stages', () => {
+    const n = 8;
+    // Stage 0: step = 1, len = 2. Twiddle factor angles: j=0 -> angle 0 -> (1, 0)
+    const stage0 = FFT2D.computeButterflyStage(0, n);
+    expect(stage0.length).toBe(4);
+    for (const tw of stage0) {
+      expect(tw.twiddleR).toBeCloseTo(1.0, 5);
+      expect(tw.twiddleI).toBeCloseTo(0.0, 5);
+      expect(tw.indexB - tw.indexA).toBe(1);
+    }
+
+    // Stage 1: step = 2, len = 4. Twiddles for j=0 (1,0) and j=1 (cos(-pi/2) = 0, sin(-pi/2) = -1)
+    const stage1 = FFT2D.computeButterflyStage(1, n);
+    expect(stage1.length).toBe(4);
+    expect(stage1[0].twiddleR).toBeCloseTo(1.0, 5);
+    expect(stage1[1].twiddleR).toBeCloseTo(0.0, 5);
+    expect(stage1[1].twiddleI).toBeCloseTo(-1.0, 5);
+  });
+});
