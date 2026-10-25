@@ -15,3 +15,14 @@ describe('Beaufort Wind Force Scale Classification', () => {
     expect(gale.probableWaveHeightMeters).toBeGreaterThanOrEqual(5.0);
   });
 });
+
+  it('should generate valid simulation presets for calm, gale, and storm states', () => {
+    const calmPreset = BeaufortScale.getSimulationPreset(0);
+    expect(calmPreset.amplitude).toBeCloseTo(0.0001, 4);
+    expect(calmPreset.choppiness).toBeCloseTo(0.5, 2);
+
+    const galePreset = BeaufortScale.getSimulationPreset(8);
+    expect(galePreset.amplitude).toBeCloseTo(2.75, 2);
+    expect(galePreset.choppiness).toBeCloseTo(1.3, 2);
+    expect(galePreset.windSpeed).toBeGreaterThan(17.0);
+  });
