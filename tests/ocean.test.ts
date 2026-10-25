@@ -180,3 +180,20 @@ describe('Butterfly Stage Twiddle Factors', () => {
     expect(stage1[1].twiddleI).toBeCloseTo(-1.0, 5);
   });
 });
+
+describe('Jacobian Foam Synthesis', () => {
+  it('should compute valid bounded foam map values across synthesized ocean frame', () => {
+    const config = { ...DEFAULT_OCEAN_CONFIG, gridSize: 32, choppiness: 1.2 };
+    const spec = OceanSpectrum.generateInitialSpectrum(config);
+    const frame = CPUReferenceOcean.synthesizeFrame(spec, config, 2.5);
+
+    expect(frame.foam).toBeDefined();
+    expect(frame.foam!.length).toBe(32 * 32);
+
+    for (let i = 0; i < frame.foam!.length; i++) {
+      const val = frame.foam![i];
+      expect(val).toBeGreaterThanOrEqual(0.0);
+      expect(val).toBeLessThanOrEqual(1.0);
+    }
+  });
+});
