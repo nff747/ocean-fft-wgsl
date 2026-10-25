@@ -143,3 +143,19 @@ describe('WGSL Ocean Compute Shaders Integrity', () => {
     expect(oceanNormalsShader).toContain('outNormalFoamTex');
   });
 });
+
+describe('JONSWAP Spectral Enhancement', () => {
+  it('should peak sharply at omega == omegaP and approach 1.0 away from resonance', () => {
+    const omegaP = 1.2;
+    const gamma = 3.3;
+
+    // At peak: exp(0) = 1, so multiplier is gamma
+    const atPeak = OceanSpectrum.jonswapMultiplier(omegaP, omegaP, gamma);
+    expect(atPeak).toBeCloseTo(gamma, 4);
+
+    // Far above peak: multiplier should decay toward 1.0
+    const farAbove = OceanSpectrum.jonswapMultiplier(5.0, omegaP, gamma);
+    expect(farAbove).toBeCloseTo(1.0, 1);
+    expect(farAbove).toBeLessThan(atPeak);
+  });
+});
