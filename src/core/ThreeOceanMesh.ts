@@ -94,4 +94,22 @@ export class ThreeOceanMesh {
       }
     };
   }
+
+  /**
+   * Packs ocean material parameters into a 16-byte aligned Float32Array
+   * suitable for WebGPU uniform buffer copying.
+   */
+  public packMaterialUniforms(): Float32Array {
+    // 8 floats = 32 bytes (16-byte aligned)
+    const buf = new Float32Array(8);
+    buf[0] = this.config.patchLength;
+    buf[1] = this.config.choppiness;
+    buf[2] = this.segments;
+    buf[3] = 0.02; // Base Fresnel reflectance R0
+    buf[4] = 0.6;  // sunDir.x
+    buf[5] = 0.7;  // sunDir.y
+    buf[6] = 0.3;  // sunDir.z
+    buf[7] = 128.0;// Specular power
+    return buf;
+  }
 }
