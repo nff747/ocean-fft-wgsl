@@ -1,6 +1,6 @@
 /**
  * Jerry Tessendorf (2001) Phillips Ocean Wave Spectrum Formulation.
- * Generates initial Fourier amplitudes, dispersion relations, and time-domain wave vectors.
+ * Generates initial Fourier amplitudes, dispersion relations, JONSWAP spectrum, and time-domain wave vectors.
  */
 
 import { OceanConfig, Complex, SpectrumPoint } from '../types';
@@ -47,6 +47,17 @@ export class OceanSpectrum {
 
     // Suppress waves traveling against wind
     return kDotW < 0 ? ph * 0.1 : ph;
+  }
+
+  /**
+   * Evaluates JONSWAP (Joint North Sea Wave Project) peak enhancement factor gamma.
+   * Enhances energy near peak angular frequency omega_p.
+   */
+  public static jonswapMultiplier(omega: number, omegaP: number, gamma: number = 3.3): number {
+    if (omega <= 1e-6 || omegaP <= 1e-6) return 1.0;
+    const sigma = omega <= omegaP ? 0.07 : 0.09;
+    const r = Math.exp(-Math.pow(omega - omegaP, 2) / (2.0 * sigma * sigma * omegaP * omegaP));
+    return Math.pow(gamma, r);
   }
 
   /**
