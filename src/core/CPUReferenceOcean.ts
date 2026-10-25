@@ -1,6 +1,7 @@
 /**
  * Headless CPU Reference Ocean Wave Synthesizer.
- * Simulates time-domain ocean wave fields and extracts displacement / foam maps via 2D CPU IFFT.
+ * Simulates time-domain ocean wave fields, extracts displacement, and calculates
+ * Jacobian foam / wave folding maps via 2D CPU IFFT.
  */
 
 import { OceanConfig, SpectrumPoint } from '../types';
@@ -11,6 +12,7 @@ export interface OceanFrame {
   heights: Float32Array;        // Y displacement
   displaceX: Float32Array;      // X horizontal displacement
   displaceZ: Float32Array;      // Z horizontal displacement
+  foam?: Float32Array;          // Wave folding / foam concentration
   maxHeight: number;
   minHeight: number;
 }
@@ -86,10 +88,34 @@ export class CPUReferenceOcean {
       }
     }
 
+    // 4. Compute Jacobian determinant J = (1 + lambda * dDx/dx) * (1 + lambda * dDz/dz) - (lambda * dDx/dz * lambda * dDz/dx)
+    const foam = new Float32Array(N * N);
+    const delta = L / N;
+
+    for (let m = 0; m < N; m++) {
+      const mPrev = (m - 1 + N) % N;
+      const mNext = (m + 1) % N;
+      for (let n = 0; n < N; n++) {
+        const nPrev = (n - 1 + N) % N;
+        const nNext = (n + 1) % N;
+        const idx = m * N + n;
+
+        const dDxx = (dxReal[m * N + nNext] - dxReal[m * N + nPrev]) / (2.0 * delta);
+        const dDzz = (dzReal[mNext * N + n] - dzReal[mPrev * N + n]) / (2.0 * delta);
+        const dDxz = (dxReal[mNext * N + n] - dxReal[mPrev * N + n]) / (2.0 * delta);
+        const dDzx = (dzReal[m * N + nNext] - dzReal[m * N + nPrev]) / (2.0 * delta);
+
+        const j = (1.0 + dDxx) * (1.0 + dDzz) - (dDxz * dDzx);
+        // Foam forms when wave folds upon itself (J < 0 or low J)
+        foam[idx] = Math.max(0.0, Math.min(1.0, 1.0 - j));
+      }
+    }
+
     return {
       heights: hReal,
       displaceX: dxReal,
       displaceZ: dzReal,
+      foam,
       maxHeight: maxH,
       minHeight: minH,
     };
