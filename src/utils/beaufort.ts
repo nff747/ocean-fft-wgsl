@@ -35,4 +35,26 @@ export class BeaufortScale {
     }
     return this.TABLE[this.TABLE.length - 1];
   }
+
+  /**
+   * Estimates appropriate Phillips amplitude and choppiness parameters for a given Beaufort force (0-12).
+   */
+  public static getSimulationPreset(scale: number): { amplitude: number; choppiness: number; windSpeed: number } {
+    const clampedScale = Math.max(0, Math.min(12, Math.round(scale)));
+    const state = this.TABLE[clampedScale];
+    const midSpeed = Number.isFinite(state.maxSpeedMs)
+      ? (state.minSpeedMs + state.maxSpeedMs) * 0.5
+      : 35.0;
+
+    // Amplitude scales quadratically with probable wave height
+    const amplitude = Math.max(0.0001, state.probableWaveHeightMeters * 0.5);
+    // Choppiness peaks at fresh breeze / gale
+    const choppiness = Math.min(1.8, 0.5 + clampedScale * 0.1);
+
+    return {
+      amplitude,
+      choppiness,
+      windSpeed: midSpeed,
+    };
+  }
 }
