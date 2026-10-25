@@ -1,9 +1,17 @@
 /**
  * Cooley-Tukey Radix-2 Fast Fourier Transform (FFT & IFFT).
- * Provides 1D and 2D Discrete Fourier Transforms with bit-reversal permutations.
+ * Provides 1D and 2D Discrete Fourier Transforms with bit-reversal permutations
+ * and butterfly twiddle factor lookups.
  */
 
 import { Complex } from '../types';
+
+export interface ButterflyTwiddle {
+  twiddleR: number;
+  twiddleI: number;
+  indexA: number;
+  indexB: number;
+}
 
 export class FFT2D {
   /**
@@ -16,6 +24,34 @@ export class FFT2D {
       x >>= 1;
     }
     return n;
+  }
+
+  /**
+   * Generates butterfly twiddle factor stages for GPU/CPU shader pipeline compilation.
+   * Stage is 0-indexed up to log2N - 1.
+   */
+  public static computeButterflyStage(stage: number, n: number): ButterflyTwiddle[] {
+    const log2n = Math.round(Math.log2(n));
+    const step = 1 << stage;
+    const len = step << 1;
+    const count = n >> 1;
+    const result: ButterflyTwiddle[] = new Array(count);
+
+    let idx = 0;
+    for (let i = 0; i < n; i += len) {
+      for (let j = 0; j < step; j++) {
+        const k = (j * n) / len;
+        const angle = (-2.0 * Math.PI * k) / n;
+        result[idx++] = {
+          twiddleR: Math.cos(angle),
+          twiddleI: Math.sin(angle),
+          indexA: i + j,
+          indexB: i + j + step,
+        };
+      }
+    }
+
+    return result;
   }
 
   /**
