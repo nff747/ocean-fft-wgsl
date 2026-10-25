@@ -4,6 +4,7 @@ import {
   FFT2D,
   OceanSimulator,
   CPUReferenceOcean,
+  ThreeOceanMesh,
   DEFAULT_OCEAN_CONFIG,
   oceanSpectrumShader,
   oceanFftShader,
@@ -195,5 +196,23 @@ describe('Jacobian Foam Synthesis', () => {
       expect(val).toBeGreaterThanOrEqual(0.0);
       expect(val).toBeLessThanOrEqual(1.0);
     }
+  });
+});
+
+describe('ThreeOceanMesh Material Packing', () => {
+  it('should generate shader definition and pack 32-byte material uniforms', () => {
+    const mesh = new ThreeOceanMesh({ patchLength: 512, choppiness: 1.8 }, 128);
+    const def = mesh.getShaderDefinition();
+    expect(def.vertexShader).toContain('displacementMap');
+    expect(def.fragmentShader).toContain('normalFoamMap');
+    expect(def.uniforms.patchLength.value).toBe(512);
+
+    const packed = mesh.packMaterialUniforms();
+    expect(packed.length).toBe(8);
+    expect(packed.byteLength).toBe(32);
+    expect(packed[0]).toBe(512);
+    expect(packed[1]).toBeCloseTo(1.8, 5);
+    expect(packed[2]).toBe(128);
+    expect(packed[3]).toBeCloseTo(0.02, 5);
   });
 });
